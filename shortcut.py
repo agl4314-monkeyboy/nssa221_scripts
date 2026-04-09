@@ -27,47 +27,52 @@ def progress_bar(message="Processing"):
 def get_desktop():
     return Path.home() / "Desktop"
 
+# recursively search for all files named `filename` starting from `start_dir`
+def find_all_files(filename, start_dir="/"):
+    matches = []
+    for root, dirs, files in os.walk(start_dir):
+        # Skip directories we can't access
+        try:
+            if filename in files:
+                full_path = os.path.join(root, filename)
+                matches.append(full_path)
+        except PermissionError:
+            continue  # skip directories without permission
+    return matches
+
 # main function to create a shortcut
 def create_shortcut():
     user_input = input("Please enter the file name or full path to create a shortcut: ").strip()
     
-    # if the user entered a full path use it
-    target_file = Path(user_input)
-    if target_file.exists():
+    # search the entire system for this filename
+    print("Searching the system, please wait...")
+    progress_bar()
+    found_files = find_all_files(user_input)
+    
+    # if file not found
+    if not found_files:
+        print(f"Sorry, couldn't find {user_input}!")
+        return
+    
+    # multiple files found, list them and let the user choose which one to use
+    if len(found_files) > 1:
+        print(f"Multiple files with the name '{user_input}' were found:")
+        for idx, f in enumerate(found_files, 1):
+            print(f"[{idx}] {f}")
+        while True:
+            choice = input(f"Select the file you want to create a shortcut for (1-{len(found_files)}): ").strip()
+            if choice.isdigit() and 1 <= int(choice) <= len(found_files):
+                target_file = found_files[int(choice) - 1]
+                break
+            else:
+                print("Invalid selection. Please try again.")
+    # otherwise continue with the single found file
+    else:
+        target_file = found_files[0]
         confirm = input(f"Found {target_file}. Select Y/y to create shortcut: ").strip().lower()
         if confirm != 'y':
             print("Shortcut creation canceled.")
             return
-    else:
-        # otherwise, search the entire system for this filename
-        print("Searching the system, please wait...")
-        progress_bar()
-        found_files = list(Path('/').rglob(user_input))
-        
-        # if file not found
-        if not found_files:
-            print(f"Sorry, couldn't find {user_input}!")
-            return
-        
-        # multiple files found, list them and let the user choose which one to use
-        if len(found_files) > 1:
-            print(f"Multiple files with the name '{user_input}' were found:")
-            for idx, f in enumerate(found_files, 1):
-                print(f"[{idx}] {f}")
-            while True:
-                choice = input(f"Select the file you want to create a shortcut for (1-{len(found_files)}): ").strip()
-                if choice.isdigit() and 1 <= int(choice) <= len(found_files):
-                    target_file = found_files[int(choice) - 1]
-                    break
-                else:
-                    print("Invalid selection. Please try again.")
-        # otherwise continue with the single found file
-        else:
-            target_file = found_files[0]
-            confirm = input(f"Found {target_file}. Select Y/y to create shortcut: ").strip().lower()
-            if confirm != 'y':
-                print("Shortcut creation canceled.")
-                return
 
     # create the symbolic link on Desktop
     shortcut_path = get_desktop() / target_file.name
@@ -99,7 +104,7 @@ def delete_shortcut():
     progress_bar()
     
     # error handling for invalid name
-    if not shortcut_path.exists() or not shortcut_path.is_symlink():
+    if not os.path.lexists(shortcut_path) or not shortcut_path.is_symlink():
         print(f"Sorry, couldn't find {shortcut_name}!")
         return
 
@@ -130,7 +135,7 @@ def report_shortcuts():
     print(f"\nThe number of links is {len(symlinks)}.\n")
     print(f"{'Symbolic Link':<16}\t{'Target Path'}")
     for link in symlinks:
-        print(f"{link.name:<16}\t{link.resolve()}")
+        print(f"{link.name:<16}\t{os.readlink(link)}")
     
     # interact with the user to return to the main menu or delete a link(convenient)
     choice = input("\nTo return to the Main Menu, press Enter. Or select R/r to remove a link: ").strip().lower()
