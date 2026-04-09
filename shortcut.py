@@ -62,13 +62,13 @@ def create_shortcut():
         while True:
             choice = input(f"Select the file you want to create a shortcut for (1-{len(found_files)}): ").strip()
             if choice.isdigit() and 1 <= int(choice) <= len(found_files):
-                target_file = found_files[int(choice) - 1]
+                target_file = Path(found_files[int(choice) - 1])
                 break
             else:
                 print("Invalid selection. Please try again.")
     # otherwise continue with the single found file
     else:
-        target_file = found_files[0]
+        target_file = Path(found_files[0])
         confirm = input(f"Found {target_file}. Select Y/y to create shortcut: ").strip().lower()
         if confirm != 'y':
             print("Shortcut creation canceled.")
